@@ -1,0 +1,17 @@
+[package]
+authors = ["Alexander Decurnou <ad@alx.xyz>"]
+categories = ["multimedia::audio"]
+description = "An audio feature extraction library"
+edition = "2018"
+keywords = ["audio", "feature", "extraction", "spectrum"]
+license = "MIT OR Apache-2.0"
+name = "audisee"
+readme = "README.md"
+repository = "https://github.com/adcrn/audisee"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rustfft = "*"
+num-complex = "*"
