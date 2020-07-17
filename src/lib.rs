@@ -54,9 +54,7 @@ pub fn amp_spectrum(signal: &[f64]) -> Vec<f64> {
 ///
 /// This differs from an amplitude spectrum as it emphasizes the differences
 /// between frequency bins.
-pub fn power_spectrum(signal: &[f64]) -> Vec<f64> {
-    let amp_spectrum = amp_spectrum(signal);
-
+pub fn power_spectrum(amp_spectrum: &[f64]) -> Vec<f64> {
     amp_spectrum.iter().map(|bin| bin.powi(2)).collect()
 }
 
@@ -108,8 +106,7 @@ pub fn rms(signal: &[f64]) -> f64 {
 ///
 /// The spectral centroid represents the "center of gravity" for a spectrum.
 /// It is often used to determine the timbre (perceived brightness) of a sound.
-pub fn spectral_centroid(signal: &[f64]) -> f64 {
-    let amp_spectrum = amp_spectrum(signal);
+pub fn spectral_centroid(amp_spectrum: &[f64]) -> f64 {
     let numerator = amp_spectrum
         .iter()
         .enumerate()
@@ -125,8 +122,7 @@ pub fn spectral_centroid(signal: &[f64]) -> f64 {
 /// Spectral crest can be used to determine the peakiness of a spectrum. A
 /// higher spectral crest indicates more tonality, while a lower spectral
 /// crest denotes more noise.
-pub fn spectral_crest(signal: &[f64]) -> f64 {
-    let amp_spectrum = amp_spectrum(signal);
+pub fn spectral_crest(amp_spectrum: &[f64]) -> f64 {
     let numerator = amp_spectrum
         .iter()
         .fold(std::f64::NEG_INFINITY, |a, b| a.max(*b));
@@ -140,17 +136,14 @@ pub fn spectral_crest(signal: &[f64]) -> f64 {
 ///
 /// Spectral decrease represents the amount of decrease in a spectrum, while emphasizing the slopes
 /// of lower frequencies. In tandem with other measures, it can be used for instrument detection.
-pub fn spectral_decrease(signal: &[f64]) -> f64 {
-    let mut amp_spectrum = amp_spectrum(signal);
-
-    // Maybe use a drain here?
-    let s_b1 = amp_spectrum.remove(0);
+pub fn spectral_decrease(amp_spectrum: &[f64]) -> f64 {
+    let (s_b1, amp_spectrum) = amp_spectrum.split_at(1);
 
     let numerator = amp_spectrum
         .iter()
         .enumerate()
         .fold(0_f64, |acc, (idx, val)| {
-            acc + ((val - s_b1) / (idx as f64 - 1_f64))
+            acc + ((val - s_b1[0]) / (idx as f64 - 1_f64))
         });
 
     let denominator: f64 = amp_spectrum.iter().sum();
@@ -164,8 +157,7 @@ pub fn spectral_decrease(signal: &[f64]) -> f64 {
 /// measure of disorder, it can be used to differentiate between types of
 /// sound that have different expectations of "order", e.g. speech vs.
 /// music with multiple instruments.
-pub fn spectral_entropy(signal: &[f64]) -> f64 {
-    let amp_spectrum = amp_spectrum(signal);
+pub fn spectral_entropy(amp_spectrum: &[f64]) -> f64 {
     let numerator = -amp_spectrum
         .iter()
         .fold(0_f64, |acc, x| acc + (x * x.log10()));
@@ -181,8 +173,7 @@ pub fn spectral_entropy(signal: &[f64]) -> f64 {
 /// Spectral flatness can be used to determine the peakiness of a spectrum. A
 /// higher spectral flatness indicates more tonality, while a lower spectral
 /// flatness denotes more noise.
-pub fn spectral_flatness(signal: &[f64]) -> f64 {
-    let amp_spectrum = amp_spectrum(signal);
+pub fn spectral_flatness(amp_spectrum: &[f64]) -> f64 {
     let numerator = amp_spectrum
         .iter()
         .fold(0_f64, |acc, x| acc * x)
@@ -196,8 +187,7 @@ pub fn spectral_flatness(signal: &[f64]) -> f64 {
 /// Calculates the spectral flux of a signal.
 ///
 /// Spectral flux is a measure of the variability of the spectrum over time.
-pub fn spectral_flux(signal: &[f64]) -> f64 {
-    let amp_spectrum = amp_spectrum(signal);
+pub fn spectral_flux(amp_spectrum: &[f64]) -> f64 {
     let diff_length = amp_spectrum.len() - 1;
 
     let mut diffs = Vec::new();
@@ -217,8 +207,7 @@ pub fn spectral_flux(signal: &[f64]) -> f64 {
 /// Spectral kurtosis measures the flatness of a spectrum near its centroid
 /// ("center of gravity"). It can also be used to measure the peakiness of
 /// a spectrum as well.
-pub fn spectral_kurtosis(signal: &[f64]) -> f64 {
-    let amp_spectrum = amp_spectrum(signal);
+pub fn spectral_kurtosis(amp_spectrum: &[f64]) -> f64 {
     let (mu_1, mu_2) = centroid_and_spread(&amp_spectrum);
 
     let numerator = amp_spectrum
@@ -239,11 +228,10 @@ pub fn spectral_kurtosis(signal: &[f64]) -> f64 {
 /// energy in a spectrum exists. It can be used to distinguish unique types of audio in many
 /// different situations.
 pub fn spectral_rolloff(
-    signal: &[f64],
+    amp_spectrum: &[f64],
     sampling_rate: Option<f64>,
     energy_threshold: Option<f64>,
 ) -> f64 {
-    let amp_spectrum = amp_spectrum(signal);
     let mut total_energy: f64 = amp_spectrum.iter().sum();
 
     let samp_rate = match sampling_rate {
@@ -269,8 +257,7 @@ pub fn spectral_rolloff(
 /// Calculates the spectral skewness of a signal.
 ///
 /// Spectral skewness measures symmetry around the centroid.
-pub fn spectral_skewness(signal: &[f64]) -> f64 {
-    let amp_spectrum = amp_spectrum(signal);
+pub fn spectral_skewness(amp_spectrum: &[f64]) -> f64 {
     let (mu_1, mu_2) = centroid_and_spread(&amp_spectrum);
 
     let numerator = amp_spectrum
@@ -289,9 +276,7 @@ pub fn spectral_skewness(signal: &[f64]) -> f64 {
 ///
 /// Spectral energy measures the amount of decrease of the spectrum. It is most pronounced when the
 /// energy in the lower formants is much greater than the energy of the higer formants.
-pub fn spectral_slope(signal: &[f64], sampling_rate: Option<f64>) -> f64 {
-    let amp_spectrum = amp_spectrum(signal);
-
+pub fn spectral_slope(amp_spectrum: &[f64], sampling_rate: Option<f64>) -> f64 {
     let samp_rate = match sampling_rate {
         Some(sr) => sr,
         None => 44100_f64,
@@ -328,9 +313,8 @@ pub fn spectral_slope(signal: &[f64], sampling_rate: Option<f64>) -> f64 {
 /// The spectral spread is the "instantaneous bandwidth" of the spectrum. It
 /// can be used as an indication of the dominance of a tone. As tones converge,
 /// the spectral spread decreases and it increases as tones diverge.
-pub fn spectral_spread(signal: &[f64]) -> f64 {
-    let amp_spectrum = amp_spectrum(signal);
-    let mu_1 = spectral_centroid(signal);
+pub fn spectral_spread(amp_spectrum: &[f64]) -> f64 {
+    let mu_1 = spectral_centroid(amp_spectrum);
 
     let numerator = amp_spectrum
         .iter()
