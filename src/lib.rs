@@ -4,6 +4,22 @@
 //! data. It provides a foundation upon which higher-level audio information
 //! systems can be built.
 
+#![warn(
+    anonymous_parameters,
+    missing_copy_implementations,
+    missing_debug_implementations,
+    missing_docs,
+    nonstandard_style,
+    rust_2018_idioms,
+    single_use_lifetimes,
+    trivial_casts,
+    trivial_numeric_casts,
+    unreachable_pub,
+    unused_extern_crates,
+    unused_qualifications,
+    variant_size_differences
+)]
+
 use num_complex::Complex;
 use rustfft::FFTplanner;
 
@@ -59,7 +75,7 @@ pub fn energy(signal: &[f64]) -> f64 {
 /// frequencies present in a signal, namely the magnitudes and phases of each
 /// frequency. It is exposed here in order to enable operations that are not
 /// included in the library at this time.
-pub fn fft(signal: &[f64]) -> Vec<num_complex::Complex<f64>> {
+pub fn fft(signal: &[f64]) -> Vec<Complex<f64>> {
     let signal_length = signal.len();
     let fft = FFTplanner::new(false).plan_fft(signal_length);
 

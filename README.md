@@ -1,6 +1,8 @@
+<img src="https://i.imgur.com/3PhJVbV.png" alt="audisee logo" title="audisee logo" align="right" height="75"/>
+
 # audisee
 audisee is an audio feature extraction library for Rust. It aims to provide a
-well-rounded set of features from spetral metadata to pitch detection and more.
+well-rounded set of features from spectral metadata to pitch detection and more.
 
 ## Disclaimer
 This project is currently a work in progress. Much of the development work has
@@ -19,7 +21,7 @@ audisee = "0.1"
 ## License
 audisee is licensed under the MIT license.
 
-### Contributing
+## Contributing
 If you would like to contribute, please feel free to open a pull request or
 issue. All contributions and suggestions are welcome. If you are more
 comfortable with a different licensing scheme, please state the reasoning in
