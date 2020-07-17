@@ -7,10 +7,6 @@
 use num_complex::Complex;
 use rustfft::FFTplanner;
 
-// TODO: Abstract this away by enabling custom sampling rates.
-// Common sampling rate.
-const SAMPLING_RATE: f64 = 44100_f64;
-
 /// Returns the amplitude spectrum of a signal block.
 ///
 /// In the amplitude spectrum, each index is a frequency bin; each bin is a
@@ -52,10 +48,6 @@ pub fn power_spectrum(signal: &Vec<f64>) -> Vec<f64> {
     power_spectrum
 }
 
-pub fn chroma() {
-    todo!();
-}
-
 /// Calculates the energy of a signal.
 ///
 /// This can be used to determine the loudness of a signal.
@@ -89,10 +81,6 @@ pub fn fft(signal: &Vec<f64>) -> Vec<num_complex::Complex<f64>> {
     spectrum
 }
 
-pub fn mfcc() {
-    todo!();
-}
-
 /// Calculates the root mean square of a signal.
 ///
 /// This can be used to determine the loudness of a signal.
@@ -106,14 +94,6 @@ pub fn rms(signal: &Vec<f64>) -> f64 {
     mean.sqrt()
 }
 
-pub fn stft() {
-    todo!();
-}
-
-pub fn spectral_bandwidth(signal: &Vec<f64>) -> f64 {
-    todo!();
-}
-
 /// Calculates the spectral centroid of a signal.
 ///
 /// The spectral centroid represents the "center of gravity" for a spectrum.
@@ -125,7 +105,7 @@ pub fn spectral_centroid(signal: &Vec<f64>) -> f64 {
         .enumerate()
         .fold(0_f64, |acc, (idx, val)| acc + (idx as f64 * val));
 
-    let denominator = signal.iter().fold(0_f64, |acc, x| acc + x);
+    let denominator = amp_spectrum.iter().fold(0_f64, |acc, x| acc + x);
 
     numerator / denominator
 }
@@ -142,6 +122,28 @@ pub fn spectral_crest(signal: &Vec<f64>) -> f64 {
         .fold(std::f64::NEG_INFINITY, |a, b| a.max(*b));
 
     let denominator = amp_spectrum.iter().fold(0_f64, |acc, x| acc + x) / amp_spectrum.len() as f64;
+
+    numerator / denominator
+}
+
+/// Calculates the spectral decrease of a signal.
+///
+/// Spectral decrease represents the amount of decrease in a spectrum, while emphasizing the slopes
+/// of lower frequencies. In tandem with other measures, it can be used for instrument detection.
+pub fn spectral_decrease(signal: &Vec<f64>) -> f64 {
+    let mut amp_spectrum = amp_spectrum(signal);
+
+    // Maybe use a drain here?
+    let s_b1 = amp_spectrum.remove(0);
+
+    let numerator = amp_spectrum
+        .iter()
+        .enumerate()
+        .fold(0_f64, |acc, (idx, val)| {
+            acc + ((val - s_b1) / (idx as f64 - 1_f64))
+        });
+
+    let denominator: f64 = amp_spectrum.iter().sum();
 
     numerator / denominator
 }
@@ -181,8 +183,25 @@ pub fn spectral_flatness(signal: &Vec<f64>) -> f64 {
     numerator / denominator
 }
 
-pub fn spectral_flux() {
-    todo!();
+/// Calculates the spectral flux of a signal.
+///
+/// Spectral flux is a measure of the variability of the spectrum over time.
+pub fn spectral_flux(signal: &Vec<f64>) -> f64 {
+    let amp_spectrum = amp_spectrum(signal);
+    let diff_length = amp_spectrum.len() - 1;
+
+    let mut diffs = Vec::new();
+
+    for idx in 1..diff_length {
+        let diff = amp_spectrum[idx] - amp_spectrum[idx - 1];
+        diffs.push(diff);
+    }
+
+    let squared_sum = diffs.iter().fold(0_f64, |acc, x| acc + x.abs().powi(2));
+
+    let spectral_flux = squared_sum.sqrt();
+
+    spectral_flux
 }
 
 /// Calculates the spectral kurtosis of a signal.
@@ -192,8 +211,7 @@ pub fn spectral_flux() {
 /// a spectrum as well.
 pub fn spectral_kurtosis(signal: &Vec<f64>) -> f64 {
     let amp_spectrum = amp_spectrum(signal);
-    let mu_1 = spectral_centroid(signal);
-    let mu_2 = spectral_spread(signal);
+    let (mu_1, mu_2) = centroid_and_spread(&amp_spectrum);
 
     let numerator = amp_spectrum
         .iter()
@@ -207,8 +225,39 @@ pub fn spectral_kurtosis(signal: &Vec<f64>) -> f64 {
     numerator / denominator
 }
 
-pub fn spectral_rolloff() {
-    todo!();
+/// Calculates the spectral rolloff point of a signal.
+///
+/// The spectral rolloff point is the frequency bin under which a given percentage of the total
+/// energy in a spectrum exists. It can be used to distinguish unique types of audio in many
+/// different situations.
+pub fn spectral_rolloff(
+    signal: &Vec<f64>,
+    sampling_rate: Option<f64>,
+    energy_threshold: Option<f64>,
+) -> f64 {
+    let amp_spectrum = amp_spectrum(signal);
+    let mut total_energy: f64 = amp_spectrum.iter().sum();
+
+    let samp_rate = match sampling_rate {
+        Some(sr) => sr,
+        None => 44100_f64,
+    };
+    let bin_transform = (samp_rate * amp_spectrum.len() as f64) / 2_f64;
+
+    let thresholded_total = match energy_threshold {
+        Some(et) => et * total_energy,
+        None => 0.85 * total_energy,
+    };
+
+    let mut idx = amp_spectrum.len() - 1;
+    while total_energy > thresholded_total {
+        total_energy -= amp_spectrum[idx];
+        idx -= 1;
+    }
+
+    let bin = (idx + 1) as f64 * bin_transform;
+
+    bin
 }
 
 /// Calculates the spectral skewness of a signal.
@@ -216,8 +265,7 @@ pub fn spectral_rolloff() {
 /// Spectral skewness measures symmetry around the centroid.
 pub fn spectral_skewness(signal: &Vec<f64>) -> f64 {
     let amp_spectrum = amp_spectrum(signal);
-    let mu_1 = spectral_centroid(signal);
-    let mu_2 = spectral_spread(signal);
+    let (mu_1, mu_2) = centroid_and_spread(&amp_spectrum);
 
     let numerator = amp_spectrum
         .iter()
@@ -231,8 +279,42 @@ pub fn spectral_skewness(signal: &Vec<f64>) -> f64 {
     numerator / denominator
 }
 
-pub fn spectral_slope() {
-    todo!();
+/// Calculates the spectral slope of a signal.
+///
+/// Spectral energy measures the amount of decrease of the spectrum. It is most pronounced when the
+/// energy in the lower formants is much greater than the energy of the higer formants.
+pub fn spectral_slope(signal: &Vec<f64>, sampling_rate: Option<f64>) -> f64 {
+    let amp_spectrum = amp_spectrum(signal);
+
+    let samp_rate = match sampling_rate {
+        Some(sr) => sr,
+        None => 44100_f64,
+    };
+    let bin_transform = (samp_rate * amp_spectrum.len() as f64) / 2_f64;
+
+    let amp_sum: f64 = amp_spectrum.iter().sum();
+    let amp_mean: f64 = amp_sum / amp_spectrum.len() as f64;
+    let freq_mean: f64 = amp_spectrum
+        .iter()
+        .enumerate()
+        .fold(0_f64, |acc, (idx, _)| acc + (idx as f64 * bin_transform))
+        / amp_spectrum.len() as f64;
+
+    let numerator = amp_spectrum
+        .iter()
+        .enumerate()
+        .fold(0_f64, |acc, (idx, val)| {
+            acc + (((idx as f64 * bin_transform) - freq_mean) * (val - amp_mean))
+        });
+
+    let denominator = amp_spectrum
+        .iter()
+        .enumerate()
+        .fold(0_f64, |acc, (idx, _)| {
+            acc + ((idx as f64 * bin_transform) - freq_mean).powi(2)
+        });
+
+    numerator / denominator
 }
 
 /// Calculates the spectral spread of a signal.
@@ -254,10 +336,6 @@ pub fn spectral_spread(signal: &Vec<f64>) -> f64 {
     let denominator = amp_spectrum.iter().fold(0_f64, |acc, x| acc + x);
 
     (numerator / denominator).sqrt()
-}
-
-pub fn spectrogram() {
-    todo!();
 }
 
 /// Calculates the zero crossing rate of a signal.
@@ -283,6 +361,31 @@ pub fn zcr(signal: &Vec<f64>) -> f64 {
     });
 
     zcr.1
+}
+
+// Calculates the spectral centroid and spread in order to reduce redundant calculation.
+fn centroid_and_spread(amp_spectrum: &Vec<f64>) -> (f64, f64) {
+    let mu_1_numerator = amp_spectrum
+        .iter()
+        .enumerate()
+        .fold(0_f64, |acc, (idx, val)| acc + (idx as f64 * val));
+
+    let mu_1_denominator = amp_spectrum.iter().fold(0_f64, |acc, x| acc + x);
+
+    let mu_1 = mu_1_numerator / mu_1_denominator;
+
+    let mu_2_numerator = amp_spectrum
+        .iter()
+        .enumerate()
+        .fold(0_f64, |acc, (idx, val)| {
+            acc + ((idx as f64 - mu_1).powi(2) * val)
+        });
+
+    let mu_2_denominator = amp_spectrum.iter().fold(0_f64, |acc, x| acc + x);
+
+    let mu_2 = (mu_2_numerator / mu_2_denominator).sqrt();
+
+    (mu_1, mu_2)
 }
 
 #[cfg(test)]
