@@ -52,20 +52,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_rms() {
+    fn check_energy() {
+        let energy = energy(crate::utils::TEST_SIGNAL);
+        assert_eq!(energy, 40.175256824332905);
+    }
+
+    #[test]
+    fn check_rms() {
         let rms = rms(crate::utils::TEST_SIGNAL);
         assert_eq!(rms, 0.5602403001749346);
     }
 
     #[test]
-    fn test_zcr() {
+    fn check_zcr() {
         let zcr = zcr(crate::utils::TEST_SIGNAL);
         assert_eq!(zcr, 58.0);
-    }
-
-    #[test]
-    fn test_energy() {
-        let energy = energy(crate::utils::TEST_SIGNAL);
-        assert_eq!(energy, 40.175256824332905);
     }
 }
