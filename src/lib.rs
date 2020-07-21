@@ -22,7 +22,7 @@
 
 pub mod spectral;
 pub mod temporal;
-mod utils;
+pub mod utils;
 
 use num_complex::Complex;
 use rustfft::FFTplanner;
