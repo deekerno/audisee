@@ -17,7 +17,7 @@
 /// ];
 ///
 /// // Create frames of length 4 with 25% overlap between consecutive frames.
-/// let of = OverlappingFrames::new(v, 4, 0.25);
+/// let of = OverlappingFrames::new(&v, 4, 0.25);
 /// let of_vec: Vec<Vec<f64>> = of.into_iter().collect();
 /// let expected_frames: Vec<Vec<f64>> = vec![
 ///     vec![1_f64, 2_f64, 3_f64, 4_f64],
@@ -35,21 +35,22 @@ pub struct OverlappingFrames {
     frame_size: usize,
 }
 
+// TODO: Change return of new function to Result.
 impl OverlappingFrames {
     /// Creates a collection of overlapping frames.
     ///
     /// At this time, frame size should be a multiple of four and no greater than half the length
-    /// of the signal vector. Avaiable overlap values are 0.25 (25%), 0.50 (50%), and 0.75 (75%).
-    pub fn new(buffer: Vec<f64>, frame_size: usize, overlap: f64) -> OverlappingFrames {
+    /// of the signal vector. Available overlap values are 0.25 (25%), 0.50 (50%), and 0.75 (75%).
+    pub fn new(buffer: &Vec<f64>, frame_size: usize, overlap: f64) -> Self {
         // Tried to do this with slices, but couldn't get around E0515 after adding padding.
-        let mut buff_clone = buffer.clone();
         let padding_needed = buffer.len() % 4;
         let padded_buffer = if padding_needed != 0 {
+            let mut buff_clone = buffer.clone();
             let mut padding = vec![0_f64; padding_needed];
             buff_clone.append(&mut padding);
             buff_clone
         } else {
-            buffer
+            buffer.clone()
         };
 
         let stride = frame_size as f64 * (1_f64 - overlap);
@@ -220,9 +221,9 @@ mod tests {
             1_f64, 2_f64, 3_f64, 4_f64, 5_f64, 6_f64, 7_f64, 8_f64, 9_f64, 10_f64, 11_f64, 12_f64,
             13_f64, 14_f64, 15_f64, 16_f64,
         ];
-        let of_25 = OverlappingFrames::new(v.clone(), 4, 0.25);
-        let of_50 = OverlappingFrames::new(v.clone(), 4, 0.50);
-        let of_75 = OverlappingFrames::new(v, 4, 0.75);
+        let of_25 = OverlappingFrames::new(&v, 4, 0.25);
+        let of_50 = OverlappingFrames::new(&v, 4, 0.50);
+        let of_75 = OverlappingFrames::new(&v, 4, 0.75);
         let of25_vec: Vec<Vec<f64>> = of_25.into_iter().collect();
         let of50_vec: Vec<Vec<f64>> = of_50.into_iter().collect();
         let of75_vec: Vec<Vec<f64>> = of_75.into_iter().collect();
@@ -235,7 +236,7 @@ mod tests {
             1_f64, 2_f64, 3_f64, 4_f64, 5_f64, 6_f64, 7_f64, 8_f64, 9_f64, 10_f64, 11_f64, 12_f64,
             13_f64, 14_f64, 15_f64, 16_f64,
         ];
-        let of = OverlappingFrames::new(v, 4, 0.25);
+        let of = OverlappingFrames::new(&v, 4, 0.25);
         let of_vec: Vec<Vec<f64>> = of.into_iter().collect();
         let expected_frames: Vec<Vec<f64>> = vec![
             vec![1_f64, 2_f64, 3_f64, 4_f64],
