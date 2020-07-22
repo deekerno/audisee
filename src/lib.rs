@@ -24,6 +24,7 @@ pub mod spectral;
 pub mod temporal;
 pub mod utils;
 
+use apodize;
 use num_complex::Complex;
 use rustfft::FFTplanner;
 
@@ -35,17 +36,9 @@ use rustfft::FFTplanner;
 /// use of the frequencies calculated in the spectrum as well as their
 /// respective magnitudes.
 pub fn amp_spectrum(signal: &[f64]) -> Vec<f64> {
-    let signal_length = signal.len();
-    let fft = FFTplanner::new(false).plan_fft(signal_length);
+    let windowed_signal = apply_window(signal);
 
-    let mut complex_signal = signal
-        .iter()
-        .map(|x| Complex::new(*x, 0f64))
-        .collect::<Vec<Complex<f64>>>();
-
-    let mut spectrum = vec![Complex::new(0_f64, 0_f64); signal_length];
-
-    fft.process(&mut complex_signal, &mut spectrum);
+    let spectrum = fft(&windowed_signal[..]);
 
     spectrum
         .iter()
@@ -82,4 +75,17 @@ pub fn fft(signal: &[f64]) -> Vec<Complex<f64>> {
     fft.process(&mut complex_signal, &mut spectrum);
 
     spectrum
+}
+
+fn apply_window(signal: &[f64]) -> Vec<f64> {
+    let signal_length = signal.len();
+    let window = apodize::hanning_iter(signal_length);
+
+    let windowed_signal: Vec<f64> = signal
+        .iter()
+        .zip(window)
+        .map(|(sample, window)| sample * window)
+        .collect();
+
+    windowed_signal
 }
