@@ -74,7 +74,6 @@ pub fn spectrogram(signal: &[f64]) -> Vec<Vec<f64>> {
         signal.to_vec().clone()
     };
 
-    // Apply window to the padded signal to prevent jankiness.
     // Then, generate overlapping frames for the signal.
     let frame_size = padded_signal.len() / 4;
     let overlapping_frames = utils::OverlappingFrames::new(&padded_signal, frame_size, 0.75);
@@ -93,6 +92,8 @@ pub fn spectrogram(signal: &[f64]) -> Vec<Vec<f64>> {
 
     for frame in overlapping_frames {
         let fft = planner.plan_fft(frame.len());
+
+        // Apply window to the padded signal to prevent jankiness.
         let windowed_frame = apply_window(&frame[..]);
 
         let mut complex_frame = windowed_frame
@@ -116,13 +117,25 @@ pub fn spectrogram(signal: &[f64]) -> Vec<Vec<f64>> {
     amp_spec_frames
 }
 
+/// Returns a vector comprised of the calculated feature for every frame in a spectrogram.
+///
+/// The spectrogram is a time series of the input signal's frequencies and their respective
+/// magnitudes. This method makes it possible to use the spectral feature extraction methods across
+/// the entire time series.
+pub fn generate_feature_time_series(f: fn(&[f64]) -> f64, spectrogram: &Vec<Vec<f64>>) -> Vec<f64> {
+    spectrogram
+        .iter()
+        .map(|frame| f(&frame[..]))
+        .collect::<Vec<f64>>()
+}
+
 /// Returns the output of the fast Fourier transform using a signal as input.
 ///
 /// The output of the FFT is a complex vector. It contains information of the
 /// frequencies present in a signal, namely the magnitudes and phases of each
 /// frequency. It is exposed here in order to enable operations that are not
 /// included in the library at this time.
-pub fn fft(signal: &[f64]) -> Vec<Complex<f64>> {
+fn fft(signal: &[f64]) -> Vec<Complex<f64>> {
     let signal_length = signal.len();
     let fft = FFTplanner::new(false).plan_fft(signal_length);
 
