@@ -1,7 +1,9 @@
 //! Utility crate.
 
-/// This struct is used to create overlapping frames of a signal. Splitting an audio signal into
-/// successive non-overlapping frames can lead to smearing of bin magnitudes as it is possible that
+/// This struct is used to create overlapping frames of a signal.
+///
+/// Splitting an audio signal into successive non-overlapping
+/// frames can lead to smearing of bin magnitudes as it is possible that
 /// the signal may not start and end at zero in each frame; this leads to a different phase offset
 /// in each frame. A difference in phase offset between frames denotes a deviation in frequency
 /// from the bin frequencies. By overlapping the signal's frames, this error in determining the
