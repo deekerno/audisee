@@ -122,10 +122,14 @@ pub fn spectrogram(signal: &[f64]) -> Vec<Vec<f64>> {
 /// The spectrogram is a time series of the input signal's frequencies and their respective
 /// magnitudes. This method makes it possible to use the spectral feature extraction methods across
 /// the entire time series.
-pub fn generate_feature_time_series(f: fn(&[f64]) -> f64, spectrogram: &Vec<Vec<f64>>) -> Vec<f64> {
+pub fn generate_feature_time_series(
+    f: fn(&[f64], Option<f64>) -> f64,
+    spectrogram: &Vec<Vec<f64>>,
+    sample_rate: Option<f64>,
+) -> Vec<f64> {
     spectrogram
         .iter()
-        .map(|frame| f(&frame[..]))
+        .map(|frame| f(&frame[..], sample_rate))
         .collect::<Vec<f64>>()
 }
 

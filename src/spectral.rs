@@ -4,15 +4,44 @@
 //! signal into the frequency domain through the use of the Fourier transform. These features can
 //! be used in combination with one another to identify timbre, pitch, etc.
 
+/// Calculates the spectral bandwidth of a signal.
+///
+/// Spectral bandwidth is the difference between the upper and lower frequencies in a continuous
+/// band of frequencies.
+pub fn bandwidth(amp_spectrum: &[f64], sampling_rate: Option<f64>) -> f64 {
+    let samp_rate = match sampling_rate {
+        Some(sr) => sr,
+        None => 44100_f64,
+    };
+    let bin_transform = (samp_rate * amp_spectrum.len() as f64) / 2_f64;
+
+    let centroid = centroid(amp_spectrum, sampling_rate);
+    amp_spectrum
+        .iter()
+        .enumerate()
+        .fold(0_f64, |acc, (idx, val)| {
+            acc + val * ((idx as f64 * bin_transform) - centroid).powi(2)
+        })
+        .sqrt()
+}
+
 /// Calculates the spectral centroid of a signal.
 ///
 /// The spectral centroid represents the "center of gravity" for a spectrum.
 /// It is often used to determine the timbre (perceived brightness) of a sound.
-pub fn centroid(amp_spectrum: &[f64]) -> f64 {
+pub fn centroid(amp_spectrum: &[f64], sampling_rate: Option<f64>) -> f64 {
+    let samp_rate = match sampling_rate {
+        Some(sr) => sr,
+        None => 44100_f64,
+    };
+    let bin_transform = (samp_rate * amp_spectrum.len() as f64) / 2_f64;
+
     let numerator = amp_spectrum
         .iter()
         .enumerate()
-        .fold(0_f64, |acc, (idx, val)| acc + (idx as f64 * val));
+        .fold(0_f64, |acc, (idx, val)| {
+            acc + ((idx as f64 * bin_transform) * val)
+        });
 
     let denominator = amp_spectrum.iter().fold(0_f64, |acc, x| acc + x);
 
@@ -24,7 +53,7 @@ pub fn centroid(amp_spectrum: &[f64]) -> f64 {
 /// Spectral crest can be used to determine the peakiness of a spectrum. A
 /// higher spectral crest indicates more tonality, while a lower spectral
 /// crest denotes more noise.
-pub fn crest(amp_spectrum: &[f64]) -> f64 {
+pub fn crest(amp_spectrum: &[f64], _sampling_rate: Option<f64>) -> f64 {
     let numerator = amp_spectrum
         .iter()
         .fold(std::f64::NEG_INFINITY, |a, b| a.max(*b));
@@ -38,7 +67,7 @@ pub fn crest(amp_spectrum: &[f64]) -> f64 {
 ///
 /// Spectral decrease represents the amount of decrease in a spectrum, while emphasizing the slopes
 /// of lower frequencies. In tandem with other measures, it can be used for instrument detection.
-pub fn decrease(amp_spectrum: &[f64]) -> f64 {
+pub fn decrease(amp_spectrum: &[f64], _sampling_rate: Option<f64>) -> f64 {
     let (s_b1, amp_spectrum) = amp_spectrum.split_at(1);
 
     let numerator = amp_spectrum
@@ -59,7 +88,7 @@ pub fn decrease(amp_spectrum: &[f64]) -> f64 {
 /// measure of disorder, it can be used to differentiate between types of
 /// sound that have different expectations of "order", e.g. speech vs.
 /// music with multiple instruments.
-pub fn entropy(amp_spectrum: &[f64]) -> f64 {
+pub fn entropy(amp_spectrum: &[f64], _sampling_rate: Option<f64>) -> f64 {
     let numerator = -amp_spectrum
         .iter()
         .fold(0_f64, |acc, x| acc + (x * x.log10()));
@@ -75,7 +104,7 @@ pub fn entropy(amp_spectrum: &[f64]) -> f64 {
 /// Spectral flatness can be used to determine the peakiness of a spectrum. A
 /// higher spectral flatness indicates more tonality, while a lower spectral
 /// flatness denotes more noise.
-pub fn flatness(amp_spectrum: &[f64]) -> f64 {
+pub fn flatness(amp_spectrum: &[f64], _sampling_rate: Option<f64>) -> f64 {
     let numerator = amp_spectrum
         .iter()
         .fold(0_f64, |acc, x| acc * x)
@@ -89,7 +118,7 @@ pub fn flatness(amp_spectrum: &[f64]) -> f64 {
 /// Calculates the spectral flux of a signal.
 ///
 /// Spectral flux is a measure of the variability of the spectrum over time.
-pub fn flux(amp_spectrum: &[f64]) -> f64 {
+pub fn flux(amp_spectrum: &[f64], _sampling_rate: Option<f64>) -> f64 {
     let diff_length = amp_spectrum.len() - 1;
 
     let mut diffs = Vec::new();
@@ -109,14 +138,19 @@ pub fn flux(amp_spectrum: &[f64]) -> f64 {
 /// Spectral kurtosis measures the flatness of a spectrum near its centroid
 /// ("center of gravity"). It can also be used to measure the peakiness of
 /// a spectrum as well.
-pub fn kurtosis(amp_spectrum: &[f64]) -> f64 {
-    let (mu_1, mu_2) = centroid_and_spread(&amp_spectrum);
+pub fn kurtosis(amp_spectrum: &[f64], sampling_rate: Option<f64>) -> f64 {
+    let (mu_1, mu_2) = centroid_and_spread(&amp_spectrum, sampling_rate);
+    let samp_rate = match sampling_rate {
+        Some(sr) => sr,
+        None => 44100_f64,
+    };
+    let bin_transform = (samp_rate * amp_spectrum.len() as f64) / 2_f64;
 
     let numerator = amp_spectrum
         .iter()
         .enumerate()
         .fold(0_f64, |acc, (idx, val)| {
-            acc + ((idx as f64 - mu_1).powi(4) * val)
+            acc + (((idx as f64 * bin_transform) - mu_1).powi(4) * val)
         });
 
     let denominator = mu_2.powi(4) * amp_spectrum.iter().fold(0_f64, |acc, x| acc + x);
@@ -159,14 +193,19 @@ pub fn rolloff(
 /// Calculates the spectral skewness of a signal.
 ///
 /// Spectral skewness measures symmetry around the centroid.
-pub fn skewness(amp_spectrum: &[f64]) -> f64 {
-    let (mu_1, mu_2) = centroid_and_spread(&amp_spectrum);
+pub fn skewness(amp_spectrum: &[f64], sampling_rate: Option<f64>) -> f64 {
+    let (mu_1, mu_2) = centroid_and_spread(&amp_spectrum, sampling_rate);
+    let samp_rate = match sampling_rate {
+        Some(sr) => sr,
+        None => 44100_f64,
+    };
+    let bin_transform = (samp_rate * amp_spectrum.len() as f64) / 2_f64;
 
     let numerator = amp_spectrum
         .iter()
         .enumerate()
         .fold(0_f64, |acc, (idx, val)| {
-            acc + ((idx as f64 - mu_1).powi(3) * val)
+            acc + (((idx as f64 * bin_transform) - mu_1).powi(3) * val)
         });
 
     let denominator = mu_2.powi(3) * amp_spectrum.iter().fold(0_f64, |acc, x| acc + x);
@@ -215,14 +254,19 @@ pub fn slope(amp_spectrum: &[f64], sampling_rate: Option<f64>) -> f64 {
 /// The spectral spread is the "instantaneous bandwidth" of the spectrum. It
 /// can be used as an indication of the dominance of a tone. As tones converge,
 /// the spectral spread decreases and it increases as tones diverge.
-pub fn spread(amp_spectrum: &[f64]) -> f64 {
-    let mu_1 = centroid(amp_spectrum);
+pub fn spread(amp_spectrum: &[f64], sampling_rate: Option<f64>) -> f64 {
+    let mu_1 = centroid(amp_spectrum, sampling_rate);
+    let samp_rate = match sampling_rate {
+        Some(sr) => sr,
+        None => 44100_f64,
+    };
+    let bin_transform = (samp_rate * amp_spectrum.len() as f64) / 2_f64;
 
     let numerator = amp_spectrum
         .iter()
         .enumerate()
         .fold(0_f64, |acc, (idx, val)| {
-            acc + ((idx as f64 - mu_1).powi(2) * val)
+            acc + (((idx as f64 * bin_transform) - mu_1).powi(2) * val)
         });
 
     let denominator = amp_spectrum.iter().fold(0_f64, |acc, x| acc + x);
@@ -231,11 +275,19 @@ pub fn spread(amp_spectrum: &[f64]) -> f64 {
 }
 
 // Calculates the spectral centroid and spread in order to reduce redundant calculation.
-fn centroid_and_spread(amp_spectrum: &[f64]) -> (f64, f64) {
+fn centroid_and_spread(amp_spectrum: &[f64], sampling_rate: Option<f64>) -> (f64, f64) {
+    let samp_rate = match sampling_rate {
+        Some(sr) => sr,
+        None => 44100_f64,
+    };
+    let bin_transform = (samp_rate * amp_spectrum.len() as f64) / 2_f64;
+
     let mu_1_numerator = amp_spectrum
         .iter()
         .enumerate()
-        .fold(0_f64, |acc, (idx, val)| acc + (idx as f64 * val));
+        .fold(0_f64, |acc, (idx, val)| {
+            acc + ((idx as f64 * bin_transform) * val)
+        });
 
     let mu_1_denominator = amp_spectrum.iter().fold(0_f64, |acc, x| acc + x);
 
@@ -245,7 +297,7 @@ fn centroid_and_spread(amp_spectrum: &[f64]) -> (f64, f64) {
         .iter()
         .enumerate()
         .fold(0_f64, |acc, (idx, val)| {
-            acc + ((idx as f64 - mu_1).powi(2) * val)
+            acc + (((idx as f64 * bin_transform) - mu_1).powi(2) * val)
         });
 
     let mu_2_denominator = amp_spectrum.iter().fold(0_f64, |acc, x| acc + x);
