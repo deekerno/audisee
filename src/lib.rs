@@ -20,6 +20,7 @@
     variant_size_differences
 )]
 
+pub mod chroma;
 pub mod spectral;
 pub mod temporal;
 pub mod utils;
