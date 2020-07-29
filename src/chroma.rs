@@ -134,22 +134,33 @@ pub(crate) fn create_chroma_filters(
 }
 
 fn normalize_2d_vec(array: Vec<Vec<f64>>) -> Vec<Vec<f64>> {
-    let column_totals: Vec<f64> = array
+    let mut transpose: Vec<Vec<f64>> = Vec::new();
+    for i in 0..array.len() {
+        let mut column = Vec::new();
+        for row in &array {
+            column.push(row[i]);
+        }
+        transpose.push(column);
+    }
+
+    let norm_factors: Vec<f64> = transpose
         .iter()
-        .map(|column| column.iter().fold(0_f64, |acc, val| acc + val.powf(2_f64)))
+        .enumerate()
+        .map(|(idx, column)| column.iter().fold(0_f64, |acc, val| acc + val.powf(2_f64)))
         .map(|sum| sum.sqrt())
         .collect();
 
-    let normalized_array: Vec<Vec<f64>> = array
-        .iter()
-        .enumerate()
-        .map(|(idx, column)| {
-            column
-                .iter()
-                .map(|val| val / column_totals[idx])
-                .collect::<Vec<f64>>()
-        })
-        .collect();
+    let mut normalized_array: Vec<Vec<f64>> = Vec::new();
+    let mut idx: usize = 0;
+    for row in &array {
+        let mut norm_row = Vec::new();
+        for x in row {
+            norm_row.push(x / norm_factors[idx]);
+            idx += 1;
+        }
+        normalized_array.push(norm_row);
+        idx = 0;
+    }
 
     normalized_array
 }
@@ -176,5 +187,65 @@ fn linspace(start: f64, stop: f64, length: usize, incl_end: bool) -> Vec<f64> {
         let mut linspace: Vec<f64> = Vec::with_capacity(length);
         linspace.push(start);
         linspace
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx;
+
+    #[test]
+    fn check_2d_normalization() {
+        let row1 = [-8_f64, 4_f64, -2_f64, 1_f64].to_vec();
+        let row2 = [-1_f64, 1_f64, -1_f64, 1_f64].to_vec();
+        let row3 = [0_f64, 0_f64, 0_f64, 1_f64].to_vec();
+        let row4 = [1_f64, 1_f64, 1_f64, 1_f64].to_vec();
+
+        let mut vec_2d = Vec::new();
+        vec_2d.push(row1);
+        vec_2d.push(row2);
+        vec_2d.push(row3);
+        vec_2d.push(row4);
+
+        let ex_row1 = [
+            -0.9847319278346618,
+            0.9428090415820635,
+            -0.8164965809277261,
+            0.5,
+        ]
+        .to_vec();
+        let ex_row2 = [
+            -0.12309149097933272,
+            0.23570226039551587,
+            -0.4082482904638631,
+            0.5,
+        ]
+        .to_vec();
+        let ex_row3 = [0.0, 0.0, 0.0, 0.5].to_vec();
+        let ex_row4 = [
+            0.12309149097933272,
+            0.23570226039551587,
+            0.4082482904638631,
+            0.5,
+        ]
+        .to_vec();
+
+        let mut ex_vec_2d = Vec::new();
+        ex_vec_2d.push(ex_row1);
+        ex_vec_2d.push(ex_row2);
+        ex_vec_2d.push(ex_row3);
+        ex_vec_2d.push(ex_row4);
+
+        let result = normalize_2d_vec(vec_2d);
+
+        assert_eq!(result, ex_vec_2d);
+    }
+
+    #[test]
+    fn check_linspace() {
+        let v = linspace(0.0, 5.0, 6, true);
+        let expected = [0_f64, 1_f64, 2_f64, 3_f64, 4_f64, 5_f64].to_vec();
+        assert_eq!(v, expected);
     }
 }
