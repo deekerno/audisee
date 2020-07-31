@@ -123,7 +123,7 @@ pub fn spectrogram(signal: &[f64]) -> Vec<Vec<f64>> {
 /// The spectrogram is a time series of the input signal's frequencies and their respective
 /// magnitudes. This method makes it possible to use the spectral feature extraction methods across
 /// the entire time series.
-pub fn generate_feature_time_series(
+pub fn spectral_feature_time_series(
     f: fn(&[f64], Option<f64>) -> f64,
     spectrogram: &Vec<Vec<f64>>,
     sample_rate: Option<f64>,
@@ -132,6 +132,52 @@ pub fn generate_feature_time_series(
         .iter()
         .map(|frame| f(&frame[..], sample_rate))
         .collect::<Vec<f64>>()
+}
+
+/// Returns a vector comprised of a chromagram for each frame in a spectrogram.
+///
+/// A chromagram is a representation of spectral energy distribution across pitch classes. By using
+/// this method, one can find the strongest (or most intense) pitches at any point in time for the
+/// signal.
+///
+/// A chroma filter bank is required to generate the chromagram and can be created by using the
+/// [`create_chroma_filter_bank`](chroma/fn.create_chroma_filter_bank.html) method.
+pub fn chromagram(spectrogram: &Vec<Vec<f64>>, chroma_filter_bank: Vec<Vec<f64>>) -> Vec<Vec<f64>> {
+    /*
+     * The idea behind this monstrosity of a function is that a chromagram
+     * of the entire signal is created, similar to the generatation of the
+     * spectrogram as seen above. For each frame of the time series spectrogram,
+     * the frequencies in that frame are weighted by the corresponding filter
+     * and then summed. The resultant collection is then normalized and returned
+     * for that frame. Each of those chromagrams are then collected together
+     * to generate the time series chromagram.
+     */
+
+    let time_series_chromagram = spectrogram
+        .iter()
+        .map(|frame| {
+            let chromagram_raw: Vec<f64> = chroma_filter_bank
+                .iter()
+                .map(|row| {
+                    frame
+                        .iter()
+                        .enumerate()
+                        .fold(0_f64, |acc, (idx, val)| acc + val.abs() * row[idx])
+                })
+                .collect();
+            let max = chromagram_raw
+                .iter()
+                .fold(std::f64::NEG_INFINITY, |a, b| a.max(*b));
+
+            if max > 0_f64 {
+                return chromagram_raw.iter().map(|v| v / max).collect();
+            } else {
+                return chromagram_raw;
+            }
+        })
+        .collect();
+
+    time_series_chromagram
 }
 
 /// Returns the output of the fast Fourier transform using a signal as input.
