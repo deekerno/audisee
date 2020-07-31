@@ -5,11 +5,28 @@
 //! used in structure analysis as well as content-based retrieval.
 
 /// Creates bank of chroma filters.
-pub(crate) fn create_chroma_filters(
+///
+/// There are several options that can be passed to this function in order to make analysis of a
+/// signal more specific to a priori knowledge, e.g. using a 24-tone equal temperament system
+/// instead of the incredibly common 12-tone system used in Western music.
+///
+/// Optional values explained:
+/// * num_chroma_bands: number of pitch classes across which frequencies will be distributed
+/// (default: 12)
+/// * sampling_rate: sampling rate that the signal at which the signal was record (default:
+/// 44100_f64)
+/// * standard_pitch: reference frequency from which pitch class frequencies will be calculated
+/// (default: 440_f64)
+/// * center_octave: along with octave_width, specifies a dominance window; gaussian weighting
+/// is centered on center_octave (default: 5)
+/// * octave_width: along with center_octave, specifies a dominance window; gaussian weighting will
+/// use half-width of size octave_width (default: 2)
+/// * base_c: if enabled, chromagram starts at pitch class C (default: true)
+pub fn create_chroma_filter_bank(
+    buffer_length: usize,
     num_chroma_bands: Option<usize>,
     sampling_rate: Option<f64>,
-    buffer_length: usize,
-    a440: Option<f64>,
+    standard_pitch: Option<f64>,
     center_octave: Option<usize>,
     octave_width: Option<usize>,
     base_c: Option<bool>,
@@ -25,7 +42,7 @@ pub(crate) fn create_chroma_filters(
         None => 44100_f64,
     };
 
-    let standard_pitch = match a440 {
+    let standard_pitch = match standard_pitch {
         Some(freq) => freq,
         None => 440_f64,
     };
@@ -145,8 +162,7 @@ fn normalize_2d_vec(array: Vec<Vec<f64>>) -> Vec<Vec<f64>> {
 
     let norm_factors: Vec<f64> = transpose
         .iter()
-        .enumerate()
-        .map(|(idx, column)| column.iter().fold(0_f64, |acc, val| acc + val.powf(2_f64)))
+        .map(|column| column.iter().fold(0_f64, |acc, val| acc + val.powf(2_f64)))
         .map(|sum| sum.sqrt())
         .collect();
 
@@ -193,7 +209,6 @@ fn linspace(start: f64, stop: f64, length: usize, incl_end: bool) -> Vec<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx;
 
     #[test]
     fn check_2d_normalization() {
